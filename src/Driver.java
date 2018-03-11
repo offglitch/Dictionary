@@ -1,18 +1,18 @@
-//** The Driver class for CompactPrefixTree */
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.Scanner;
 
+/** The Driver class for CompactPrefixTree */
 public class Driver {
         public static void main(String[] args) throws FileNotFoundException {
                 //full();
-                tx();
-		/*
-		t0();
-		t3();
-		t1();
-		t2();
-*/
+                //tx();
+
+                t0();
+                t3();
+                t1();
+                t2();
+
         }
 
         private static void tx() throws FileNotFoundException {
@@ -54,6 +54,16 @@ public class Driver {
                 tree.add("demon");
                 tree.add("dog");
                 tree.add("demons");
+
+                System.out.println("Suggestions for cat");
+                for(String s: tree.suggest("cat", 2)) {
+                        System.out.println("\t" + s);
+                }
+
+                System.out.println("Suggestions for cata");
+                for(String s: tree.suggest("cata", 2)) {
+                        System.out.println("\t" + s);
+                }
 
                 System.out.println("Found cat " + tree.check("cat"));
                 tree.print();
