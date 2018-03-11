@@ -1,6 +1,14 @@
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.util.Scanner;
 /** CompactPrefixTree class, implements Dictionary ADT and
  *  several additional methods. Can be used as a spell checker.
  *  Fill in code in the methods of this class. You may add additional methods. */
+
+
 public class CompactPrefixTree implements Dictionary {
 
     private Node root; // the root of the tree
@@ -9,6 +17,7 @@ public class CompactPrefixTree implements Dictionary {
      * Creates an empty "dictionary" (compact prefix tree).
      * */
     public CompactPrefixTree(){
+
         root = new Node();
     }
 
@@ -18,6 +27,16 @@ public class CompactPrefixTree implements Dictionary {
      * @param filename the name of the file with words
      */
     public CompactPrefixTree(String filename) {
+
+        this();
+        try {
+            Scanner sc = new Scanner(new File(filename));
+            while(sc.hasNextLine()) {
+                add(sc.nextLine().trim());
+            }
+        } catch (FileNotFoundException e) {
+            System.out.println("Could not read " + filename);
+        }
         // FILL IN CODE:
         // Read each word from the file, add it to the tree
 
@@ -65,7 +84,7 @@ public class CompactPrefixTree implements Dictionary {
      * then print out the children of the node at a higher indentation level.
      */
     public void printTree() {
-        // FILL IN CODE
+        printTree(root, System.out);
 
 
     }
@@ -76,10 +95,12 @@ public class CompactPrefixTree implements Dictionary {
      * @param filename the name of the file where to output the tree
      */
     public void printTree(String filename) {
-        // FILL IN CODE
-        // Same as printTree, but outputs info to a file
-
-
+        try {
+            PrintStream out = new PrintStream(new File(filename));
+            printTree(root, out);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -108,6 +129,37 @@ public class CompactPrefixTree implements Dictionary {
     }
 
     // ---------- Private helper methods ---------------
+    private int getCommonLength(String s1, String s2) {
+
+        int j = Math.min(s2.length(), s1.length());
+        int i = 0;
+        for ( ; i < j ; i++) {
+            if(s1.charAt(i) != s2.charAt(i)) {
+                break;
+            }
+        }
+
+        return i;
+    }
+    private void printTree(Node node, PrintStream out, int level) {
+        for (int i = 0 ; i < level ; i++) {
+            out.print(" ");
+        }
+        out.print(node.prefix);
+        if(node.isWord) {
+            out.print("*");
+        }
+        out.println("");
+
+        for (Node child : node.children) {
+            if(child != null) {
+                printTree(child, out, level+1);
+            }
+        }
+    }
+    private void printTree(Node node, PrintStream out) {
+        printTree(node, out, 0);
+    }
 
     /**
      *  A private add method that adds a given string to the tree
@@ -117,10 +169,80 @@ public class CompactPrefixTree implements Dictionary {
      * @return a reference to the root of the tree that contains s
      */
     private Node add(String s, Node node) {
-        // FILL IN CODE
+        if(node.prefix.equals("")) {
+            Node child = node.getChildFor(s);
+            if(child == null) {
+                child = new Node(s);
+                child.isWord = true;
+                node.insertChild(child);
+                child.parent = node;
+                return child;
+            }
+            else {
+                return add(s, child);
+            }
+        }
+        if(node.prefix.equals(s) || s.equals("")) {
+            node.isWord = true;
+            return node;
+        }
 
 
-        return null; // don't forget to change it
+        int i = getCommonLength(node.prefix, s);
+        String suffix = node.prefix.substring(i);
+        String suffixWord = s.substring(i);
+        String lcp = s.substring(0, i);
+
+        if( !lcp.equals("")) {
+            if(!suffix.equals("")) {
+                Node newNode = new Node(lcp); // 1
+                newNode.isWord = false;
+                node.prefix = suffix;
+                newNode.insertChild(node); // 2
+
+                node.parent.insertChild(newNode);
+                newNode.parent = node.parent;
+                node.parent = newNode;
+                newNode.parent.insertChild(newNode);
+                if(newNode.prefix.length() == 1 &&
+                        suffixWord.length() > 0 &&
+                        newNode.prefix.charAt(0) == suffixWord.charAt(0)) {
+                    //System.out.println("\t" + suffixWord + " " + newNode.prefix);
+                    return add(s, newNode);
+                }
+                else {
+                    return add(suffixWord, newNode);
+                }
+            }
+            else {
+                Node child = node.getChildFor(suffixWord);
+                if(child == null) {
+                    child = new Node(suffixWord);
+                    child.isWord = true;
+                    node.insertChild(child);
+                    child.parent = node;
+                    return child;
+                }
+                else {
+
+                    return add(suffixWord, child);
+                }
+
+            }
+        }
+        else {
+            Node child = node.getChildFor(suffixWord);
+            if(child == null) {
+                child = new Node(s);
+                child.isWord = true;
+                node.insertChild(child);
+                child.parent = node;
+                return child;
+            }
+            else {
+                return add(suffixWord, child);
+            }
+        }
     }
 
 
@@ -132,8 +254,26 @@ public class CompactPrefixTree implements Dictionary {
      */
     private boolean check(String s, Node node) {
         // FILL IN CODE
+        if(s.length() != 0) {
+            if(node.prefix.equals("")) {
+                Node child = node.getChildFor(s);
+                if(child != null) {
+                    return check(s, child);
+                }
+            }
+            if(s.equals(node.prefix)) {
 
-        return false; // don't forget to change it
+                return node.isWord;
+            }
+            int i = getCommonLength(s, node.prefix);
+            if(i <= node.prefix.length()) {
+                Node child = node.getChildFor(s.substring(i));
+                if(child != null) {
+                    return check(s.substring(i), child);
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -145,8 +285,26 @@ public class CompactPrefixTree implements Dictionary {
      */
     private boolean checkPrefix(String prefix, Node node) {
         // FILL IN CODE
+        if(prefix.length() != 0) {
+            if(node.prefix.equals("")) {
+                Node child = node.getChildFor(prefix);
+                if(child != null) {
+                    return checkPrefix(prefix, child);
+                }
+            }
+            if(prefix.equals(node.prefix)) {
 
-        return false; // don't forget to change it
+                return true;
+            }
+            int i = getCommonLength(prefix, node.prefix);
+            if(i <= node.prefix.length()) {
+                Node child = node.getChildFor(prefix.substring(i));
+                if(child != null) {
+                    return checkPrefix(prefix.substring(i), child);
+                }
+            }
+        }
+        return true;
     }
 
     /**
@@ -155,11 +313,22 @@ public class CompactPrefixTree implements Dictionary {
      * @param s the string obtained by concatenating prefixes on the way to this node
      * @param node the root of the tree
      */
-    private void print(String s, Node node) {
-        // FILL IN CODE
+    private void print(String s, Node node){
+        for(Node child: node.children) {
+            if(child != null) {
+                String newS = s + child.prefix;
 
+                if(child.isWord) {
+                    System.out.println(newS);
+                }
+                print(newS, child);
+            }
+        }
     }
 
+    // private void suggest(String s, Node node){
+
+    //}
     // FILL IN CODE: add a private suggest method. Decide which parameters
     // it should have
 
@@ -169,11 +338,35 @@ public class CompactPrefixTree implements Dictionary {
         String prefix; // prefix stored in the node
         Node children[]; // array of children (26 children)
         boolean isWord; // true if by concatenating all prefixes on the path from the root to this node, we get a valid word
+        private Node parent;
 
         Node() {
             isWord = false;
             prefix = "";
             children = new Node[26]; // initialize the array of children
+        }
+
+        Node(String s) {
+            prefix = s;
+            children = new Node[26];
+        }
+
+        public Node getChildFor(String s) {
+            if(s.equals("")) {
+                return null;
+            }
+            return children[s.charAt(0) - 'a'];
+        }
+
+        public void insertChild(Node child) {
+            if(child.prefix.length() > 0) {
+                int indx = child.prefix.charAt(0) - 'a';
+                children[indx] = child;
+            }
+        }
+
+        public String toString() {
+            return String.format("%s <- %s ", prefix,  (parent == null) ? "" : parent.prefix);
         }
     }
 
